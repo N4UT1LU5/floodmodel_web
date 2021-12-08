@@ -5,3 +5,4 @@ gis/
 output/*
 input/tiles/*
 .vscode
+.env
