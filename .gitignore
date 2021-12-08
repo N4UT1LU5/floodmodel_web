@@ -1,0 +1,7 @@
+gis/
+.git/
+.tiff
+*.geojson
+output/*
+input/tiles/*
+.vscode
