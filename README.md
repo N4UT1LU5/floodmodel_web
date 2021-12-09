@@ -7,8 +7,8 @@ output <- floodzone shape
 
 ### Setup
 
-python3 -m venv gis
-pip install -r pip.txt
+python3 -m venv gis\
+pip install -r pip.txt\
 (pip freeze > pip.txt)
 
 ### Todo
