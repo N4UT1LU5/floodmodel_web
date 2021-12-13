@@ -17,6 +17,8 @@ from rich import box
 # Rich console
 console = Console()
 
+mode = "debug"
+
 # constants
 input_folder = "./input/"
 tile_folder = input_folder + "tiles/"
@@ -35,13 +37,19 @@ river_shapefile = input_folder + "waterwaySHP/gsk3c_gew_kanal_plm.shp"
 # https://betterprogramming.pub/how-to-make-parallel-async-http-requests-in-python-d0bd74780b8a
 async def fetch_async(entry, session):
     url, path = entry
-    async with session.get(url) as response:
-        if response.status == 200:
-            with open(path, "wb") as f:
-                f.write(await response.read())
-        else:
-            console.print(response.status_code, response.url)
-            return None
+    try:
+        async with session.get(url) as response:
+            if response.status == 200:
+                # print("dl:" + path)
+                with open(path, "wb") as f:
+                    f.write(await response.read())
+                # response.clear()
+                # pass
+            else:
+                console.print(response.status_code, response.url)
+                return
+    except Exception as e:
+        print(e)
 
 
 async def gather_with_concurrency(n, *tasks):
@@ -55,13 +63,16 @@ async def gather_with_concurrency(n, *tasks):
 
 
 async def async_download(urls):
+    conc_req = 5
+    conn = aiohttp.TCPConnector(limit=conc_req, ttl_dns_cache=300)
+    # session = aiohttp.ClientSession(connector=conn)
 
-    conn = aiohttp.TCPConnector(limit=None, ttl_dns_cache=300)
-    session = aiohttp.ClientSession(connector=conn)
-    conc_req = 10
-
-    await gather_with_concurrency(conc_req, *[fetch_async(i, session) for i in urls])
-    await session.close()
+    # await gather_with_concurrency(conc_req, *[fetch_async(i, session) for i in urls])
+    # for i in urls:
+    #     await fetch_async(i, session)
+    # await session.close()
+    async with aiohttp.ClientSession(connector=conn) as session:
+        await asyncio.gather(*[fetch_async(url, session) for url in urls])
 
 
 def setLocation(x, y, r):
@@ -144,10 +155,12 @@ def cleanupFloodzoneShape(floodzone_gdf: GeoDataFrame, river_gdf: GeoDataFrame):
     # dissolve floodzone and fill holes with buffer and simplify shape
     result = result.dissolve()
     result = result.buffer(3, 4).buffer(-3, 4).simplify(1)
+    res_json = result.to_json(show_bbox=True)
     result.to_file(output_folder + "cleanflood.geojson", driver="GeoJSON")
     console.print(
         "[bold black on green]output file: " + output_folder + "cleanflood.geojson"
     )
+    return res_json
 
 
 def createFloodzoneMultiTile(floodheight: float, location: list):
@@ -192,7 +205,7 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
             + f"SUBSET=x({bbox[0]},{bbox[1]})&SUBSET=y({bbox[2]},{bbox[3]})&OUTFILE=tile{str(i)}"
         )
         urls.append([url, filename_kachel + str(i) + ".tiff"])
-
+    emptyFolder(tile_folder)
     with console.status(f"[bold green]Downloading {len(bbox_list)} tile(s)") as s:
         asyncio.run(async_download(urls))
 
@@ -243,7 +256,7 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
     # convertRasterToShape(shape, "floodshape")
     emptyFolder(tile_folder)
     with console.status("[bold green]cleanup floodshape"):
-        cleanupFloodzoneShape(flood_gdf, river_gdf)
+        flood_json = cleanupFloodzoneShape(flood_gdf, river_gdf)
 
     endtime = time.time()
     # timingtable
@@ -260,6 +273,7 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
     table.box = box.SIMPLE
     console.print("[bold] Runntimes in sec:")
     console.print(table)
+    return flood_json
 
 
 def rndPre(nmbr, digits_before_decimal):
@@ -269,29 +283,31 @@ def rndPre(nmbr, digits_before_decimal):
 
 
 if __name__ == "__main__":
-    # Bochum Dahlhausen
-    # location = (370500, 5698700, 2000)
-    # flood_height = 1
 
-    console.print("[bold blue]~~~ Flood model cli ~~~")
-    flood_height = int(input("Enter floodwater height: ") or 1)
-    x = int(input("Enter x: ") or 370500)
-    y = int(input("Enter y: ") or 5698700)
-    r = float(input("Enter radius [km]: ") or 1)
-    r *= 1000
-    x = rndPre(x, 3)
-    y = rndPre(y, 3)
-    r = rndPre(r, 2)
+    if mode == "debug":
+        # Bochum Dahlhausen
+        location = (370500, 5698700, 1000)
+        flood_height = 1
+    else:
+        console.print("[bold blue]~~~ Flood model cli ~~~")
+        flood_height = int(input("Enter floodwater height: ") or 1)
+        x = int(input("Enter x: ") or 370500)
+        y = int(input("Enter y: ") or 5698700)
+        r = float(input("Enter radius [km]: ") or 1)
+        r *= 1000
+        x = rndPre(x, 3)
+        y = rndPre(y, 3)
+        r = rndPre(r, 2)
 
-    table = Table(show_header=True, header_style="bold green")
-    table.box = box.SIMPLE
-    table.add_column("x")
-    table.add_column("y")
-    table.add_column("radius m")
-    table.add_column("height m")
-    location = [x, y, r]
-    table.add_row(str(x), str(y), str(r), str(flood_height))
-    console.print(table)
+        table = Table(show_header=True, header_style="bold green")
+        table.box = box.SIMPLE
+        table.add_column("x")
+        table.add_column("y")
+        table.add_column("radius m")
+        table.add_column("height m")
+        location = [x, y, r]
+        table.add_row(str(x), str(y), str(r), str(flood_height))
+        console.print(table)
 
     createFloodzoneMultiTile(flood_height, location)
     console.print("[green]DONE ! ")
