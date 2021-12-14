@@ -5,12 +5,55 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=firefox">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Flutmodell</title>
+    <!-- bootstrap dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-uWxY/CJNBR+1zjPWmfnSnVxwRheevXITnMqoEIeG1LJrdI0GlVs/9cVSyPYXdcSF" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-kQtW33rZJAHjgefvhyyzcGF3C5TFyBQBA13V1RKPf4uH+bwyzQxZ6CmMZHmNBEfJ" crossorigin="anonymous"></script>
+        
+    <!-- leaflet dependencies -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+    crossorigin=""/>
+   
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+    integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+    crossorigin=""></script>
+
+    
+
+    <!-- own javascript -->
+    <script type="text/javascript" src="{{ url_for('static', filename='js/map.js') }}"></script>
+    
+     <!-- own stylesheet -->
+     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/map.css') }}">
+    
+
 </head>
 
 <body>
-    <div>TEST</div>
-    <div>GuMo</div>
+
+     <!-- empty map container div - will be filled later as interactive map -->
+
+     <div id="mapContainer" class="test"> </div> 
+
+     <!-- just a bit vertical space -->
+ 
+     <br>
+     
+    <h1>Flutmodell Version 1.0</h1>
+    <hr>
+    <h2>Herzlich Willkommen bei unserem Geoinformatik Projekt</h2>
+    <br>
+    <h1 style="color: red;"> 
+        Diese Seite befindet sich noch im Aufbau... </p>
+    </h1>
+    <hr>
+
+    
+
+   
+
 </body>
 
 </html>
