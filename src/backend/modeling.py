@@ -1,6 +1,7 @@
 import asyncio
 import os, time
 import requests, aiohttp
+from dotenv import load_dotenv
 
 import rasterio as rio
 from rasterio import features
@@ -17,21 +18,43 @@ from rich import box
 # Rich console
 console = Console()
 
-mode = "debug"
+load_dotenv()
+
+
+def strToBool(str):
+    """converts "True", "False" string to bool"""
+    if str == "True" or str == "true":
+        return True
+    elif str == "False" or str == "false":
+        return False
+    else:
+        return None
+
 
 # constants
+DEBUG = strToBool(os.environ.get("DEBUG"))
+ASYNC_DL = strToBool(os.environ.get("ASYNC_DL"))
+
+# Implement Null coalescing operator if it becomes available anytime
+if DEBUG is None:
+    DEBUG = False
+if ASYNC_DL is None:
+    ASYNC_DL = True
+
 input_folder = "./input/"
 tile_folder = input_folder + "tiles/"
 output_folder = "./output/"
+
+
 # create folders
 if not os.path.exists(tile_folder):
     os.makedirs(tile_folder)
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 
-# kachel_url = f"https://www.wcs.nrw.de/geobasis/wcs_nw_dgm?REQUEST=GetCoverage&SERVICE=WCS&VERSION=2.0.1&COVERAGEID=nw_dgm&FORMAT=image/tiff&SUBSET=x({x1},{x2})&SUBSET=y({y1},{y2})&OUTFILE=dgm&APP=timonline"
-kachel_url = "https://www.wcs.nrw.de/geobasis/wcs_nw_dgm?REQUEST=GetCoverage&SERVICE=WCS&VERSION=2.0.1&COVERAGEID=nw_dgm&FORMAT=image/tiff&"
-filename_kachel = tile_folder + "tile"
+# tile_url = f"https://www.wcs.nrw.de/geobasis/wcs_nw_dgm?REQUEST=GetCoverage&SERVICE=WCS&VERSION=2.0.1&COVERAGEID=nw_dgm&FORMAT=image/tiff&SUBSET=x({x1},{x2})&SUBSET=y({y1},{y2})&OUTFILE=dgm&APP=timonline"
+tile_url = "https://www.wcs.nrw.de/geobasis/wcs_nw_dgm?REQUEST=GetCoverage&SERVICE=WCS&VERSION=2.0.1&COVERAGEID=nw_dgm&FORMAT=image/tiff&"
+filename_tile = tile_folder + "tile"
 river_shapefile = input_folder + "waterwaySHP/gsk3c_gew_kanal_plm.shp"
 
 # https://betterprogramming.pub/how-to-make-parallel-async-http-requests-in-python-d0bd74780b8a
@@ -90,10 +113,11 @@ def emptyFolder(folder):
         os.remove(os.path.join(folder, f))
 
 
-def downloadTiff(url, filename_tiff):
+def downloadTiff(entry):
     """
     download Tiff from url and save in file of current directory
     """
+    url, filename_tiff = entry
     with requests.get(url) as r:
         if r.status_code == 200:
             with open(filename_tiff, "wb") as f:
@@ -155,7 +179,7 @@ def cleanupFloodzoneShape(floodzone_gdf: GeoDataFrame, river_gdf: GeoDataFrame):
     # dissolve floodzone and fill holes with buffer and simplify shape
     result = result.dissolve()
     result = result.buffer(3, 4).buffer(-3, 4).simplify(1)
-    res_json = result.to_json(show_bbox=True)
+    res_json = result.to_json()
     result.to_file(output_folder + "cleanflood.geojson", driver="GeoJSON")
     console.print(
         "[bold black on green]output file: " + output_folder + "cleanflood.geojson"
@@ -201,13 +225,17 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
     for i in range(len(bbox_list)):
         bbox = bbox_list[i]
         url = (
-            kachel_url
+            tile_url
             + f"SUBSET=x({bbox[0]},{bbox[1]})&SUBSET=y({bbox[2]},{bbox[3]})&OUTFILE=tile{str(i)}"
         )
-        urls.append([url, filename_kachel + str(i) + ".tiff"])
+        urls.append([url, filename_tile + str(i) + ".tiff"])
     emptyFolder(tile_folder)
     with console.status(f"[bold green]Downloading {len(bbox_list)} tile(s)") as s:
-        asyncio.run(async_download(urls))
+        if ASYNC_DL:
+            asyncio.run(async_download(urls))
+        else:
+            for url in urls:
+                downloadTiff(url)
 
     downloadtime = time.time()
     # calculate mean river height of all tiles
@@ -284,10 +312,12 @@ def rndPre(nmbr, digits_before_decimal):
 
 if __name__ == "__main__":
 
-    if mode == "debug":
+    if DEBUG:
         # Bochum Dahlhausen
-        location = (370500, 5698700, 1000)
+        location = (370500, 5698700, 2000)
         flood_height = 1
+        console.print("[bold red]~~~ Flood model cli ~~~")
+        console.print(f"Async Download: {ASYNC_DL} | Debug: {DEBUG} ")
     else:
         console.print("[bold blue]~~~ Flood model cli ~~~")
         flood_height = int(input("Enter floodwater height: ") or 1)
