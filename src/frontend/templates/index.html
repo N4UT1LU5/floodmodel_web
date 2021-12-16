@@ -1,56 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=firefox" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Flutmodell</title>
     <!-- bootstrap dependencies -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.2/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-      integrity="sha384-uWxY/CJNBR+1zjPWmfnSnVxwRheevXITnMqoEIeG1LJrdI0GlVs/9cVSyPYXdcSF"
-      crossorigin="anonymous"
-    />
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.2/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-kQtW33rZJAHjgefvhyyzcGF3C5TFyBQBA13V1RKPf4uH+bwyzQxZ6CmMZHmNBEfJ"
-      crossorigin="anonymous"
-    ></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-uWxY/CJNBR+1zjPWmfnSnVxwRheevXITnMqoEIeG1LJrdI0GlVs/9cVSyPYXdcSF" crossorigin="anonymous" />
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-kQtW33rZJAHjgefvhyyzcGF3C5TFyBQBA13V1RKPf4uH+bwyzQxZ6CmMZHmNBEfJ"
+        crossorigin="anonymous"></script>
 
     <!-- leaflet dependencies -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
-      integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
-      crossorigin=""
-    />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+        integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+        crossorigin="" />
 
     <!-- Make sure you put this AFTER Leaflet's CSS -->
-    <script
-      src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
-      integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
-      crossorigin=""
-    ></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+        integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+        crossorigin=""></script>
 
     <!-- own javascript -->
-    <script
-      type="text/javascript"
-      src="{{ url_for('static', filename='js/map.js') }}"
-    ></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/modules/api.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/map.js') }}"></script>
 
     <!-- own stylesheet -->
-    <link
-      rel="stylesheet"
-      type="text/css"
-      href="{{ url_for('static', filename='styles/map.css') }}"
-    />
-  </head>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/map.css') }}" />
+</head>
 
-  <body>
+<body>
     <!-- empty map container div - will be filled later as interactive map -->
-
     <div id="mapContainer"></div>
-    <input type="button" onclick="alert('Hello World!')" value="Click Me!" />
-  </body>
+    <input type="button" onclick="sendRequestFloodzone()" value="Get Floodzone" class="submit_btn" />
+</body>
+
 </html>
