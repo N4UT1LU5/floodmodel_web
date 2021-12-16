@@ -26,8 +26,8 @@ if __name__ == "__main__":
         datefmt="[%X]",
         # handlers=[RichHandler(rich_tracebacks=True)],
     )
-    log = logging.getLogger("rich")
 
+log = logging.getLogger("rich")
 
 load_dotenv()
 
