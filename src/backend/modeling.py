@@ -282,36 +282,36 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
             f"mean height of rivers:{round(mean_river_height,2)} | flood level:{round(mean_river_height,2) + floodheight} m"
         )
         shapes = []
-        with console.status("[bold green]creating shapefile") as status:
-            for tile in raster_list:
-                arr = tile["arr"]
-                bbox = tile["bbox"]
-                transform = tile["trafo"]
-                crs = tile["crs"]
-                # if cell value under level height -> set 0
-                arr[arr < mean_river_height + floodheight] = 0
-                # else set cell value -> 1
-                arr[arr != 0] = 1
-                mod_raster = arr
+        # with console.status("[bold green]creating shapefile") as status:
+        for tile in raster_list:
+            arr = tile["arr"]
+            bbox = tile["bbox"]
+            transform = tile["trafo"]
+            crs = tile["crs"]
+            # if cell value under level height -> set 0
+            arr[arr < mean_river_height + floodheight] = 0
+            # else set cell value -> 1
+            arr[arr != 0] = 1
+            mod_raster = arr
 
-                # get shapes from raster    https://gist.github.com/sgillies/8655640
-                shapes.extend(
-                    list(
-                        features.shapes(
-                            mod_raster,
-                            mask=(mod_raster != 1),
-                            transform=transform,
-                        )
+            # get shapes from raster    https://gist.github.com/sgillies/8655640
+            shapes.extend(
+                list(
+                    features.shapes(
+                        mod_raster,
+                        mask=(mod_raster != 1),
+                        transform=transform,
                     )
                 )
-
-            # convert json dict into geodataframe
-            shapejson = (
-                {"type": "Feature", "properties": {}, "geometry": s}
-                for i, (s, v) in enumerate(shapes)
             )
-            collection = {"type": "FeatureCollection", "features": list(shapejson)}
-            flood_gdf = gp.GeoDataFrame.from_features(collection["features"], crs=crs)
+
+        # convert json dict into geodataframe
+        shapejson = (
+            {"type": "Feature", "properties": {}, "geometry": s}
+            for i, (s, v) in enumerate(shapes)
+        )
+        collection = {"type": "FeatureCollection", "features": list(shapejson)}
+        flood_gdf = gp.GeoDataFrame.from_features(collection["features"], crs=crs)
 
     river_gdf = gp.read_file(river_shapefile, bbox=flood_gdf.envelope)
     # convertRasterToShape(shape, "floodshape")
@@ -319,9 +319,9 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
     if __name__ == "__main__":
         with console.status("[bold green]cleanup floodshape"):
             flood_json = cleanupFloodzoneShape(flood_gdf, river_gdf)
-        return flood_json
     else:
         flood_json = cleanupFloodzoneShape(flood_gdf, river_gdf)
+        return flood_json
 
     endtime = time.time()
     # timingtable
