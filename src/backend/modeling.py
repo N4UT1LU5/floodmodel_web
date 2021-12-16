@@ -1,5 +1,6 @@
 import asyncio
 import os, time
+import pandas
 import requests, aiohttp
 from dotenv import load_dotenv, main
 
@@ -120,6 +121,15 @@ def setLocation(x, y, r):
     return location
 
 
+def convertToUTM32(x, y):
+    df = pandas.DataFrame({"lat": [x], "lon": [y]})
+    gdf = GeoDataFrame(df, geometry=gp.points_from_xy(df.lon, df.lat), crs="EPSG:4326")
+    gdf = gdf.to_crs(epsg="25832")
+    x = gdf.geometry.x[0]
+    y = gdf.geometry.y[0]
+    return [x, y]
+
+
 def emptyFolder(folder):
     for f in os.listdir(folder):
         if not f.endswith(".tiff"):
@@ -140,7 +150,7 @@ def downloadTiff(entry):
                         f.write(chunk)
             return filename_tiff
         else:
-            console.print(r.status_code, r.url)
+            log.warn(r.status_code, r.url)
             return None
 
 
