@@ -1,7 +1,7 @@
 import asyncio
 import os, time
 import requests, aiohttp
-from dotenv import load_dotenv
+from dotenv import load_dotenv, main
 
 import rasterio as rio
 from rasterio import features
@@ -10,13 +10,24 @@ from geopandas.geodataframe import GeoDataFrame
 import numpy as np
 import shapely.speedups
 
+import logging
 from rich.console import Console
 from rich.table import Table
 from rich.progress import track
 from rich import box
 
-# Rich console
-console = Console()
+if __name__ == "__main__":
+    log_level = "CRITICAL"
+    # Rich console
+    console = Console()
+    logging.basicConfig(
+        level=log_level,
+        format="%(message)s",
+        datefmt="[%X]",
+        # handlers=[RichHandler(rich_tracebacks=True)],
+    )
+    log = logging.getLogger("rich")
+
 
 load_dotenv()
 
@@ -102,6 +113,9 @@ def setLocation(x, y, r):
     """
     get rect raster box of input utm coords
     """
+    x = int(x)
+    y = int(y)
+    r = int(r)
     location = [x - r, x + r, y - r, y + r]
     return location
 
@@ -181,7 +195,7 @@ def cleanupFloodzoneShape(floodzone_gdf: GeoDataFrame, river_gdf: GeoDataFrame):
     result = result.buffer(3, 4).buffer(-3, 4).simplify(1)
     res_json = result.to_json()
     result.to_file(output_folder + "cleanflood.geojson", driver="GeoJSON")
-    console.print(
+    log.debug(
         "[bold black on green]output file: " + output_folder + "cleanflood.geojson"
     )
     return res_json
@@ -189,7 +203,7 @@ def cleanupFloodzoneShape(floodzone_gdf: GeoDataFrame, river_gdf: GeoDataFrame):
 
 def createFloodzoneMultiTile(floodheight: float, location: list):
     """
-    docstring
+    create Floodzone geoJSON from location with flood height
     """
     shapely.speedups.enable()
     starttime = time.time()
@@ -230,27 +244,34 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
         )
         urls.append([url, filename_tile + str(i) + ".tiff"])
     emptyFolder(tile_folder)
-    with console.status(f"[bold green]Downloading {len(bbox_list)} tile(s)") as s:
+
+    def dl():
         if ASYNC_DL:
             asyncio.run(async_download(urls))
         else:
             for url in urls:
                 downloadTiff(url)
 
+    if __name__ == "__main__":
+        with console.status(f"[bold green]Downloading {len(bbox_list)} tile(s)") as s:
+            dl()
+    else:
+        dl()
+
     downloadtime = time.time()
     # calculate mean river height of all tiles
     mean_river_height = calcMeanRiverHeight(river_shapefile, tile_folder)
 
     if mean_river_height == None:
-        return console.print("No rivers in selected location!")
+        return log.info("No rivers in selected location!")
 
     else:
-        console.print(
-            f"mean height of rivers:[bold blue]{round(mean_river_height,2)} m[/bold blue] \n flood level: [bold blue]{round(mean_river_height,2) + floodheight} m[/bold blue]"
+        log.info(
+            f"mean height of rivers:{round(mean_river_height,2)} | flood level:{round(mean_river_height,2) + floodheight} m"
         )
         shapes = []
         # with console.status("[bold green]creating shapefile") as status:
-        for tile_file in track(os.listdir(tile_folder), "Creating shapes:"):
+        for tile_file in os.listdir(tile_folder):
             if tile_file.endswith(".tiff"):
                 with rio.open(tile_folder + tile_file, "r") as k1:
                     # read raster as array
@@ -283,8 +304,12 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
     river_gdf = gp.read_file(river_shapefile, bbox=flood_gdf.envelope)
     # convertRasterToShape(shape, "floodshape")
     emptyFolder(tile_folder)
-    with console.status("[bold green]cleanup floodshape"):
+    if __name__ == "__main__":
+        with console.status("[bold green]cleanup floodshape"):
+            flood_json = cleanupFloodzoneShape(flood_gdf, river_gdf)
+    else:
         flood_json = cleanupFloodzoneShape(flood_gdf, river_gdf)
+        return flood_json
 
     endtime = time.time()
     # timingtable
@@ -301,7 +326,6 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
     table.box = box.SIMPLE
     console.print("[bold] Runntimes in sec:")
     console.print(table)
-    return flood_json
 
 
 def rndPre(nmbr, digits_before_decimal):
@@ -340,4 +364,4 @@ if __name__ == "__main__":
         console.print(table)
 
     createFloodzoneMultiTile(flood_height, location)
-    console.print("[green]DONE ! ")
+    console.print("[green]DONE !")
