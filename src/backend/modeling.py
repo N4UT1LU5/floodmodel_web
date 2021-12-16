@@ -1,5 +1,5 @@
 import asyncio
-import os, time
+import os, time, sys, io
 import pandas
 import requests, aiohttp
 from dotenv import load_dotenv, main
@@ -14,7 +14,7 @@ import shapely.speedups
 import logging
 from rich.console import Console
 from rich.table import Table
-from rich.progress import track
+from rich.progress import Progress, track
 from rich import box
 
 if __name__ == "__main__":
@@ -57,7 +57,7 @@ input_folder = "./input/"
 tile_folder = input_folder + "tiles/"
 output_folder = "./output/"
 
-
+tile_buffer = []
 # create folders
 if not os.path.exists(tile_folder):
     os.makedirs(tile_folder)
@@ -70,44 +70,31 @@ filename_tile = tile_folder + "tile"
 river_shapefile = input_folder + "waterwaySHP/gsk3c_gew_kanal_plm.shp"
 
 # https://betterprogramming.pub/how-to-make-parallel-async-http-requests-in-python-d0bd74780b8a
-async def fetch_async(entry, session):
-    url, path = entry
-    try:
-        async with session.get(url) as response:
-            if response.status == 200:
-                # print("dl:" + path)
-                with open(path, "wb") as f:
-                    f.write(await response.read())
-                # response.clear()
-                # pass
-            else:
-                console.print(response.status_code, response.url)
-                return
-    except Exception as e:
-        print(e)
-
-
-async def gather_with_concurrency(n, *tasks):
-    semaphore = asyncio.Semaphore(n)
-
-    async def sem_task(task):
-        async with semaphore:
-            return await task
-
-    return await asyncio.gather(*(sem_task(task) for task in tasks))
 
 
 async def async_download(urls):
-    conc_req = 5
-    conn = aiohttp.TCPConnector(limit=conc_req, ttl_dns_cache=300)
-    # session = aiohttp.ClientSession(connector=conn)
+    list = []
+    step = 0
+    with Progress() as progress:
+        if __name__ == "__main__":
+            task = progress.add_task("Downloading", total=len(urls))
 
-    # await gather_with_concurrency(conc_req, *[fetch_async(i, session) for i in urls])
-    # for i in urls:
-    #     await fetch_async(i, session)
-    # await session.close()
-    async with aiohttp.ClientSession(connector=conn) as session:
-        await asyncio.gather(*[fetch_async(url, session) for url in urls])
+        async def fetch_async(entry, session):
+            url, path = entry
+
+            async with session.get(url) as response:
+                if response.status == 200:
+                    inmemoryfile = io.BytesIO(await response.content.read())
+                    if __name__ == "__main__":
+                        progress.update(task_id=task, advance=1)
+                    return list.append(inmemoryfile)
+                else:
+                    console.print(response.status_code, response.url)
+                    return
+
+        async with aiohttp.ClientSession() as session:
+            await asyncio.gather(*[fetch_async(url, session) for url in urls])
+            return list
 
 
 def setLocation(x, y, r):
@@ -130,6 +117,26 @@ def convertToUTM32(x, y):
     return [x, y]
 
 
+def createRasterList(tile_buffer):
+    arr_list = []
+    for tile in tile_buffer:
+        with rio.open(tile, "r") as k1:
+            arr = k1.read(1)
+            arr_list.append(
+                dict(
+                    {
+                        "arr": arr,
+                        "bbox": k1.bounds,
+                        "trafo": k1.transform,
+                        "shape": k1.shape,
+                        "crs": k1.crs,
+                    }
+                )
+            )
+    print(sys.getsizeof(arr_list))
+    return arr_list
+
+
 def emptyFolder(folder):
     for f in os.listdir(folder):
         if not f.endswith(".tiff"):
@@ -144,44 +151,40 @@ def downloadTiff(entry):
     url, filename_tiff = entry
     with requests.get(url) as r:
         if r.status_code == 200:
-            with open(filename_tiff, "wb") as f:
-                for chunk in r.iter_content(chunk_size=1024):
-                    if chunk:
-                        f.write(chunk)
-            return filename_tiff
+            inmemoryfile = io.BytesIO(r.content)
+            return inmemoryfile
         else:
             log.warn(r.status_code, r.url)
             return None
 
 
-def calcMeanRiverHeight(riverSHPfilename, tilefolder):
+def calcMeanRiverHeight(riverSHPfilename, raster_list):
     """
     calculate mean elevation of river line on DGM
     """
     mean_river_height_list = []
-    for f in os.listdir(tilefolder):
-        if f.endswith(".tiff"):
-            with rio.open(tilefolder + f, "r") as k1:
-                arr = k1.read(1)
-                bbox = k1.bounds
-                transform = k1.transform
-            river_gdf = gp.read_file(riverSHPfilename, bbox=bbox)
-            shapes = ((geom, 255) for geom in river_gdf.geometry)
-            try:
-                burned = features.rasterize(
-                    shapes=shapes, out_shape=k1.shape, transform=transform
-                )
-            except ValueError:
-                continue
-            # create mask array
-            burned[burned == 0] = 1
-            burned[burned == 255] = 0
-            burned_int = burned.astype(int)
+    for tile in raster_list:
+        arr = tile["arr"]
+        bbox = tile["bbox"]
+        transform = tile["trafo"]
 
-            masked_array = np.ma.array(arr, mask=burned_int)
-            mean_river_height = np.mean(masked_array)
-            if mean_river_height != None:
-                mean_river_height_list.append(mean_river_height)
+        river_gdf = gp.read_file(riverSHPfilename, bbox=bbox)
+        shapes = ((geom, 255) for geom in river_gdf.geometry)
+        try:
+            burned = features.rasterize(
+                shapes=shapes, out_shape=tile["shape"], transform=transform
+            )
+        except ValueError:
+            continue
+        # create mask array
+        burned[burned == 0] = 1
+        burned[burned == 255] = 0
+        burned_int = burned.astype(int)
+
+        masked_array = np.ma.array(arr, mask=burned_int)
+        mean_river_height = np.mean(masked_array)
+        if mean_river_height != None:
+            mean_river_height_list.append(mean_river_height)
 
     return sum(mean_river_height_list) / len(mean_river_height_list)
 
@@ -215,6 +218,7 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
     """
     create Floodzone geoJSON from location with flood height
     """
+    tile_buffer = []
     shapely.speedups.enable()
     starttime = time.time()
     tile_raster_size = 1000
@@ -255,53 +259,51 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
         urls.append([url, filename_tile + str(i) + ".tiff"])
     emptyFolder(tile_folder)
 
-    def dl():
-        if ASYNC_DL:
-            asyncio.run(async_download(urls))
-        else:
-            for url in urls:
-                downloadTiff(url)
-
-    if __name__ == "__main__":
-        with console.status(f"[bold green]Downloading {len(bbox_list)} tile(s)") as s:
-            dl()
+    if ASYNC_DL:
+        tile_buffer.extend(asyncio.run(async_download(urls)))
     else:
-        dl()
+        for url in urls:
+            tile_buffer.append(downloadTiff(url))
 
+    raster_list = createRasterList(tile_buffer)
     downloadtime = time.time()
     # calculate mean river height of all tiles
-    mean_river_height = calcMeanRiverHeight(river_shapefile, tile_folder)
+    if __name__ == "__main__":
+        with console.status("[bold green]calc mean river height"):
+            mean_river_height = calcMeanRiverHeight(river_shapefile, raster_list)
+    else:
+        mean_river_height = calcMeanRiverHeight(river_shapefile, raster_list)
 
+    # mean_river_height = 60
     if mean_river_height == None:
         return log.info("No rivers in selected location!")
-
     else:
         log.info(
             f"mean height of rivers:{round(mean_river_height,2)} | flood level:{round(mean_river_height,2) + floodheight} m"
         )
         shapes = []
-        # with console.status("[bold green]creating shapefile") as status:
-        for tile_file in os.listdir(tile_folder):
-            if tile_file.endswith(".tiff"):
-                with rio.open(tile_folder + tile_file, "r") as k1:
-                    # read raster as array
-                    arr = k1.read(1)
-                    # if cell value under level height -> set 0
-                    arr[arr < mean_river_height + floodheight] = 0
-                    # else set cell value -> 1
-                    arr[arr != 0] = 1
-                    mod_raster = arr
-                    crs = k1.crs
-                    # get shapes from raster    https://gist.github.com/sgillies/8655640
-                    shapes.extend(
-                        list(
-                            features.shapes(
-                                mod_raster,
-                                mask=(mod_raster != 1),
-                                transform=k1.transform,
-                            )
+        with console.status("[bold green]creating shapefile") as status:
+            for tile in raster_list:
+                arr = tile["arr"]
+                bbox = tile["bbox"]
+                transform = tile["trafo"]
+                crs = tile["crs"]
+                # if cell value under level height -> set 0
+                arr[arr < mean_river_height + floodheight] = 0
+                # else set cell value -> 1
+                arr[arr != 0] = 1
+                mod_raster = arr
+
+                # get shapes from raster    https://gist.github.com/sgillies/8655640
+                shapes.extend(
+                    list(
+                        features.shapes(
+                            mod_raster,
+                            mask=(mod_raster != 1),
+                            transform=transform,
                         )
                     )
+                )
 
             # convert json dict into geodataframe
             shapejson = (
@@ -317,9 +319,9 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
     if __name__ == "__main__":
         with console.status("[bold green]cleanup floodshape"):
             flood_json = cleanupFloodzoneShape(flood_gdf, river_gdf)
+        return flood_json
     else:
         flood_json = cleanupFloodzoneShape(flood_gdf, river_gdf)
-        return flood_json
 
     endtime = time.time()
     # timingtable
@@ -345,10 +347,9 @@ def rndPre(nmbr, digits_before_decimal):
 
 
 if __name__ == "__main__":
-
     if DEBUG:
         # Bochum Dahlhausen
-        location = (370500, 5698700, 2000)
+        location = (370500, 5698700, 4000)
         flood_height = 1
         console.print("[bold red]~~~ Flood model cli ~~~")
         console.print(f"Async Download: {ASYNC_DL} | Debug: {DEBUG} ")
