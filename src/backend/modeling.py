@@ -10,6 +10,7 @@ import geopandas as gp
 from geopandas.geodataframe import GeoDataFrame
 import numpy as np
 import shapely.speedups
+from owslib.wfs import WebFeatureService
 
 import logging
 from rich.console import Console
@@ -68,10 +69,10 @@ if not os.path.exists(output_folder):
 tile_url = "https://www.wcs.nrw.de/geobasis/wcs_nw_dgm?REQUEST=GetCoverage&SERVICE=WCS&VERSION=2.0.1&COVERAGEID=nw_dgm&FORMAT=image/tiff&"
 filename_tile = tile_folder + "tile"
 river_shapefile = input_folder + "waterwaySHP/gsk3c_gew_kanal_plm.shp"
+alkis_simplified_wfs_url = "http://www.wfs.nrw.de/geobasis/wfs_nw_alkis_vereinfacht"
+
 
 # https://betterprogramming.pub/how-to-make-parallel-async-http-requests-in-python-d0bd74780b8a
-
-
 async def async_download(urls):
     list = []
     step = 0
@@ -160,7 +161,7 @@ def downloadTiff(entry):
 
 def calcMeanRiverHeight(riverSHPfilename, raster_list):
     """
-    calculate mean elevation of river line on DGM
+    calculate mean elevation of river path on DGM
     """
     mean_river_height_list = []
     for tile in raster_list:
@@ -206,6 +207,7 @@ def cleanupFloodzoneShape(floodzone_gdf: GeoDataFrame, river_gdf: GeoDataFrame):
     # dissolve floodzone and fill holes with buffer and simplify shape
     result = result.dissolve()
     result = result.buffer(3, 4).buffer(-3, 4).simplify(1)
+    result = result.to_crs(epsg=4326)
     res_json = result.to_json()
     result.to_file(output_folder + "cleanflood.geojson", driver="GeoJSON")
     log.debug(
@@ -248,7 +250,6 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
             y_cursor += tile_raster_size
             x_cursor = outer_bbox[0]
 
-    # download all tiles
     urls = []
     for i in range(len(bbox_list)):
         bbox = bbox_list[i]
@@ -259,6 +260,7 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
         urls.append([url, filename_tile + str(i) + ".tiff"])
     emptyFolder(tile_folder)
 
+    # download all tiles
     if ASYNC_DL:
         tile_buffer.extend(asyncio.run(async_download(urls)))
     else:
@@ -338,6 +340,13 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
     table.box = box.SIMPLE
     console.print("[bold] Runntimes in sec:")
     console.print(table)
+
+
+def loadWFS(wfs_url):
+    """
+    docstring
+    """
+    wfs = WebFeatureService(url=wfs_url)
 
 
 def rndPre(nmbr, digits_before_decimal):
