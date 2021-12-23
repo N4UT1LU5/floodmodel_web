@@ -84,8 +84,6 @@ function initMap() {
   function onMapClick(e) {
     lalo = e.latlng;
     var t = document.getElementById("myRange").value * 100;
-    var addOnLat = addToLat(t);
-    var addOnLng = addToLng(t, lalo.lat + addOnLat);
 
     circle = L.circle(e.latlng, t, {
       color: "#C02900",
