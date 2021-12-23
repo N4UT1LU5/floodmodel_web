@@ -8,6 +8,12 @@ var x = 0;
 var y = 0;
 var h = 1;
 var r = 1000;
+var lalo = 0;
+var radius = 0;
+var recBounds = [];
+var mymap;
+var circle;
+var fixedRectangle;
 
 function initControls() {
   if (mymap) {
@@ -73,17 +79,31 @@ function initMap() {
   initControls();
 
   initBackgroundLayers();
-  initInitialData();
 
-  var popup = L.popup();
-
+  Rectangle = L.circle();
   function onMapClick(e) {
-    x = parseInt(e.latlng.lat * 100000);
-    y = parseInt(e.latlng.lng * 100000);
-    popup
-      .setLatLng(e.latlng)
-      .setContent("You clicked the map at " + e.latlng.toString())
-      .openOn(mymap);
+    lalo = e.latlng;
+    var t = document.getElementById("myRange").value * 100;
+    var addOnLat = addToLat(t);
+    var addOnLng = addToLng(t, lalo.lat + addOnLat);
+
+    circle = L.circle(e.latlng, t, {
+      color: "#C02900",
+      weight: 1,
+      opacity: 0,
+      fillColor: "#ff0000",
+      fillOpacity: 0,
+    }).addTo(mymap);
+    recBounds = circle.getBounds();
+
+    console.log(recBounds);
+
+    console.log(recBounds);
+    L.rectangle(recBounds, {
+      color: "#0000ff",
+      weight: 5,
+      fillOpacity: 0,
+    }).addTo(mymap);
   }
 
   mymap.on("click", onMapClick);
@@ -107,3 +127,12 @@ function sendRequestFloodzone() {
 }
 
 document.addEventListener("DOMContentLoaded", onDomLoaded);
+
+function fixLocation() {
+  fixedRectangle = L.rectangle(recBounds, {
+    color: "#ff0000",
+    weight: 5,
+    fillOpacity: 0,
+  });
+  fixedRectangle.addTo(mymap);
+}
