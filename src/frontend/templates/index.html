@@ -32,9 +32,46 @@
 </head>
 
 <body>
-    <!-- empty map container div - will be filled later as interactive map -->
-    <div id="mapContainer"></div>
-    <input type="button" onclick="sendRequestFloodzone()" value="Get Floodzone" class="submit_btn" />
+    
+    <div id="map-wrapper">
+        <div id="mapContainer"></div>
+        <div id="button-wrapper">
+          <input
+            type="button"
+            id="btn1"
+            onclick="fixLocation()"
+            value="Setze Standpunkt"
+            class="flood_btn"
+          />
+          <input
+            type="button"
+            id="btn2"
+            onclick="alert('km x km')"
+            value="Radius setzen"
+            class="flood_btn"
+          />
+          <input
+            type="button"
+            id="btn3"
+            onclick="alert('Höhe in m über Wasserstand')"
+            value="Höhe setzen"
+            class="flood_btn"
+          />
+          <input
+            type="button"
+            id="btn4"
+            onclick="alert('Points of Interest')"
+            value="Gebäude"
+            class="flood_btn"
+          />
+        
+          <div class="slidecontainer">
+            <input type="range" min="1" max="50" value="25" class="slider" id="myRange">
+            <p> Radius [m]: <span id="demo"></span></p>
+          </div>
+  
+          
+      </div>
 </body>
 
 </html>
