@@ -13,7 +13,7 @@ var radius = 0;
 var recBounds = [];
 var mymap;
 var circle;
-var fixedRectangle;
+var RecFixed;
 
 function initControls() {
     if (mymap) {
@@ -70,7 +70,7 @@ function initMap() {
     initControls();
 
     initBackgroundLayers();
-
+    let RecUnfixed;
     Rectangle = L.circle();
     function onMapClick(e) {
         lalo = e.latlng;
@@ -84,11 +84,11 @@ function initMap() {
             fillOpacity: 0
         }).addTo(mymap);
         recBounds = circle.getBounds();
-
-        console.log(recBounds);
-
-        console.log(recBounds);
-        L.rectangle(recBounds, {
+        // console.log(RecUnfixed);
+        if (RecUnfixed) {
+            mymap.removeLayer(RecUnfixed);
+        }
+        RecUnfixed = L.rectangle(recBounds, {
             color: "#0000ff",
             weight: 5,
             fillOpacity: 0
@@ -138,10 +138,13 @@ function sendRequestFloodzone() {
 document.addEventListener("DOMContentLoaded", onDomLoaded);
 
 function fixLocation() {
-    fixedRectangle = L.rectangle(recBounds, {
+    if (RecFixed) {
+        mymap.removeLayer(RecFixed);
+    }
+    RecFixed = L.rectangle(recBounds, {
         color: "#ff0000",
         weight: 5,
         fillOpacity: 0
     });
-    fixedRectangle.addTo(mymap);
+    RecFixed.addTo(mymap);
 }
