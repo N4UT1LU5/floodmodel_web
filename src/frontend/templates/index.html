@@ -32,48 +32,28 @@
 </head>
 
 <body>
-    
-    <div id="map-wrapper">
+
+    <div class="map-wrapper">
         <div id="mapContainer"></div>
-        <div id="button-wrapper">
-          <input
-            type="button"
-            id="btn1"
-            onclick="fixLocation()"
-            value="Setze Standpunkt"
-            class="flood_btn"
-          />
-          <input
-            type="button"
-            id="btn2"
-            onclick="alert('km x km')"
-            value="Radius setzen"
-            class="flood_btn"
-          />
-          <input
-            type="button"
-            id="btn3"
-            onclick="alert('Höhe in m über Wasserstand')"
-            value="Höhe setzen"
-            class="flood_btn"
-          />
-          <input
-            type="button"
-            id="btn4"
-            onclick="alert('Points of Interest')"
-            value="Gebäude"
-            class="flood_btn"
-          />
-        
-          <div class="slidecontainer">
-            <input type="range" min="1" max="5" value="1" class="slider" id="myHeight" style="width:43%; background-color: blue;" >
-                <p style=" color: rgb(0, 0, 0);outline-color: rgb(0, 0, 0);outline-style:auto;width: 8%;background-color: white;"> Wasserstand+ [m]: <span id="demowater"></span></p>
-                <input type="range" min="1" max="50" value="25" class="slider" id="myRange">
-                <p style=" color: rgb(0, 0, 0);outline-color: rgb(0, 0, 0);outline-style:auto;width: 8%;background-color: white;"> Radius [m]: <span id="demoradius"></span></p>
-              </div>
-  
-          
-      </div>
+        <div class="control-wrapper">
+            <input type="button" id="btn1" onclick="fixLocation()" value="Standpunkt Setzen" class="flood_btn" />
+            <!-- <input type="button" id="btn2" onclick="alert('km x km')" value="Radius setzen" class="flood_btn" /> -->
+            <!-- <input type="button" id="btn3" onclick="alert('Höhe in m über Wasserstand')" value="Höhe setzen"class="flood_btn" /> -->
+            <input type="button" id="btn4" onclick="alert('Points of Interest')" value="Gebäude" class="flood_btn" />
+            <input type="button" class="flood_btn" onclick="sendRequestFloodzone()" value="Anfrage Senden">
+            <div class="slidecontainer">
+                <div class="slider_wrapper">
+                    <input type="range" min="1" max="5" value="1" class="slider" id="height_slider">
+                    <label for="height_slider" class="slider_label">Wasserstand+: <span
+                            id="height_label_value"></span>m</label>
+                </div>
+                <div class="slider_wrapper">
+                    <input type="range" min="1" max="50" value="10" class="slider" id="radius_slider">
+                    <label for="radius_slider" class="slider_label">Radius: <span
+                            id="radius_label_value"></span>m</label>
+                </div>
+            </div>
+        </div>
 </body>
 
 </html>
