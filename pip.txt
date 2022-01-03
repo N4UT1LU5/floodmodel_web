@@ -36,6 +36,7 @@ rasterio==1.2.10
 regex==2021.11.10
 requests==2.26.0
 rich==10.14.0
+Rtree==0.9.7
 Shapely==1.8.0
 six==1.16.0
 snuggs==1.4.7

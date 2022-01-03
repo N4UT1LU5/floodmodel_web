@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os, time, sys, io
 import pandas
 import requests, aiohttp
@@ -6,11 +7,11 @@ from dotenv import load_dotenv, main
 
 import rasterio as rio
 from rasterio import features
-import geopandas as gp
+import geopandas as gpd
+import pandas as pd
 from geopandas.geodataframe import GeoDataFrame
 import numpy as np
 import shapely.speedups
-from owslib.wfs import WebFeatureService
 
 import logging
 from rich.console import Console
@@ -47,6 +48,11 @@ def strToBool(str):
 # constants
 DEBUG = strToBool(os.environ.get("DEBUG"))
 ASYNC_DL = strToBool(os.environ.get("ASYNC_DL"))
+TILE_RASTER_SIZE = 1000
+
+# globals
+# flood_gdf = GeoDataFrame()
+
 
 # Implement Null coalescing operator if it becomes available anytime
 if DEBUG is None:
@@ -69,7 +75,8 @@ if not os.path.exists(output_folder):
 tile_url = "https://www.wcs.nrw.de/geobasis/wcs_nw_dgm?REQUEST=GetCoverage&SERVICE=WCS&VERSION=2.0.1&COVERAGEID=nw_dgm&FORMAT=image/tiff&"
 filename_tile = tile_folder + "tile"
 river_shapefile = input_folder + "waterwaySHP/gsk3c_gew_kanal_plm.shp"
-alkis_simplified_wfs_url = "http://www.wfs.nrw.de/geobasis/wfs_nw_alkis_vereinfacht"
+# alkis_simplified_wfs_url = "http://www.wfs.nrw.de/geobasis/wfs_nw_alkis_vereinfacht"
+alkis_simplified_wfs_url = "https://www.wfs.nrw.de/geobasis/wfs_nw_alkis_vereinfacht?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=ave:GebaeudeBauwerk&OUTPUTFORMAT=text/xml;subtype=gml/3.2.1&"
 
 
 # https://betterprogramming.pub/how-to-make-parallel-async-http-requests-in-python-d0bd74780b8a
@@ -80,9 +87,7 @@ async def async_download(urls):
         if __name__ == "__main__":
             task = progress.add_task("Downloading", total=len(urls))
 
-        async def fetch_async(entry, session):
-            url, path = entry
-
+        async def fetch_async(url, session):
             async with session.get(url) as response:
                 if response.status == 200:
                     inmemoryfile = io.BytesIO(await response.content.read())
@@ -111,7 +116,7 @@ def setLocation(x, y, r):
 
 def convertToUTM32(x, y):
     df = pandas.DataFrame({"lat": [x], "lon": [y]})
-    gdf = GeoDataFrame(df, geometry=gp.points_from_xy(df.lon, df.lat), crs="EPSG:4326")
+    gdf = GeoDataFrame(df, geometry=gpd.points_from_xy(df.lon, df.lat), crs="EPSG:4326")
     gdf = gdf.to_crs(epsg="25832")
     x = gdf.geometry.x[0]
     y = gdf.geometry.y[0]
@@ -169,7 +174,7 @@ def calcMeanRiverHeight(riverSHPfilename, raster_list):
         bbox = tile["bbox"]
         transform = tile["trafo"]
 
-        river_gdf = gp.read_file(riverSHPfilename, bbox=bbox)
+        river_gdf = gpd.read_file(riverSHPfilename, bbox=bbox)
         shapes = ((geom, 255) for geom in river_gdf.geometry)
         try:
             burned = features.rasterize(
@@ -203,27 +208,26 @@ def cleanupFloodzoneShape(floodzone_gdf: GeoDataFrame, river_gdf: GeoDataFrame):
     mask = floodzone_gdf.intersects(river_gdf.loc[0, "geometry"])
 
     # filter floodzones with mask
-    result = floodzone_gdf.loc[mask]
+    result_gdf = floodzone_gdf.loc[mask]
     # dissolve floodzone and fill holes with buffer and simplify shape
-    result = result.dissolve()
-    result = result.buffer(3, 4).buffer(-3, 4).simplify(1)
-    result = result.to_crs(epsg=4326)
-    res_json = result.to_json()
-    result.to_file(output_folder + "cleanflood.geojson", driver="GeoJSON")
+    result_gdf = result_gdf.dissolve()
+    result_gdf = gpd.GeoDataFrame(
+        geometry=result_gdf.buffer(3, 4).buffer(-3, 4).simplify(1)
+    )
+    result_gdf.to_file(output_folder + "cleanflood.geojson", driver="GeoJSON")
     log.debug(
         "[bold black on green]output file: " + output_folder + "cleanflood.geojson"
     )
-    return res_json
+    return result_gdf
 
 
-def createFloodzoneMultiTile(floodheight: float, location: list):
+def createFloodzoneMultiTileGDF(floodheight: float, location: list):
     """
-    create Floodzone geoJSON from location with flood height
+    create Floodzone Geodataframe from location with flood height
     """
     tile_buffer = []
     shapely.speedups.enable()
     starttime = time.time()
-    tile_raster_size = 1000
 
     x = location[0]
     y = location[1]
@@ -241,13 +245,13 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
                 bbox_list.append(
                     [
                         x_cursor,
-                        x_cursor + tile_raster_size,
+                        x_cursor + TILE_RASTER_SIZE,
                         y_cursor,
-                        y_cursor + tile_raster_size,
+                        y_cursor + TILE_RASTER_SIZE,
                     ]
                 )
-                x_cursor += tile_raster_size
-            y_cursor += tile_raster_size
+                x_cursor += TILE_RASTER_SIZE
+            y_cursor += TILE_RASTER_SIZE
             x_cursor = outer_bbox[0]
 
     urls = []
@@ -257,7 +261,7 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
             tile_url
             + f"SUBSET=x({bbox[0]},{bbox[1]})&SUBSET=y({bbox[2]},{bbox[3]})&OUTFILE=tile{str(i)}"
         )
-        urls.append([url, filename_tile + str(i) + ".tiff"])
+        urls.append(url)
     emptyFolder(tile_folder)
 
     # download all tiles
@@ -313,17 +317,18 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
             for i, (s, v) in enumerate(shapes)
         )
         collection = {"type": "FeatureCollection", "features": list(shapejson)}
-        flood_gdf = gp.GeoDataFrame.from_features(collection["features"], crs=crs)
-
-    river_gdf = gp.read_file(river_shapefile, bbox=flood_gdf.envelope)
+        flood_gdf = gpd.GeoDataFrame.from_features(collection["features"], crs=crs)
+    river_gdf = gpd.read_file(river_shapefile, bbox=flood_gdf.envelope)
     # convertRasterToShape(shape, "floodshape")
     emptyFolder(tile_folder)
     if __name__ == "__main__":
         with console.status("[bold green]cleanup floodshape"):
-            flood_json = cleanupFloodzoneShape(flood_gdf, river_gdf)
+            flood_gdf = cleanupFloodzoneShape(flood_gdf, river_gdf)
+            # flood_json = flood_gdf.to_json()
     else:
-        flood_json = cleanupFloodzoneShape(flood_gdf, river_gdf)
-        return flood_json
+        flood_gdf = cleanupFloodzoneShape(flood_gdf, river_gdf)
+        # flood_json = flood_gdf.to_json()
+        return flood_gdf
 
     endtime = time.time()
     # timingtable
@@ -340,13 +345,73 @@ def createFloodzoneMultiTile(floodheight: float, location: list):
     table.box = box.SIMPLE
     console.print("[bold] Runntimes in sec:")
     console.print(table)
+    return flood_gdf
 
 
-def loadWFS(wfs_url):
+def createFloodzoneMultiTileJSON(height, location):
+    gdf = createFloodzoneMultiTileGDF(height, location).to_crs(epsg=4326)
+    return gdf.to_json()
+
+
+def loadWFStoGDF(wfs_url, bbox=setLocation(370500, 5698700, 2000)):
     """
-    docstring
+    Download WFS from URL at given bounding box into GDF
     """
-    wfs = WebFeatureService(url=wfs_url)
+    TILE_RASTER_SIZE = 1000
+    outer_bbox = bbox
+    bbox_list = [outer_bbox]
+    x_cursor = outer_bbox[0]
+    y_cursor = outer_bbox[2]
+
+    if bbox[2] > 1000:
+        bbox_list = []
+        while y_cursor < outer_bbox[3]:
+            while x_cursor < outer_bbox[1]:
+                bbox_list.append(
+                    [
+                        x_cursor,
+                        x_cursor + TILE_RASTER_SIZE,
+                        y_cursor,
+                        y_cursor + TILE_RASTER_SIZE,
+                    ]
+                )
+                x_cursor += TILE_RASTER_SIZE
+            y_cursor += TILE_RASTER_SIZE
+            x_cursor = outer_bbox[0]
+    urls = []
+    for bbox in bbox_list:
+        url = (
+            wfs_url
+            + f"BBOX={bbox[0]},{bbox[2]},{bbox[1]},{bbox[3]},urn:ogc:def:crs:EPSG::25832"
+        )
+        urls.append(url)
+    tile_buffer = []
+    # download
+    tile_buffer.extend(asyncio.run(async_download(urls)))
+    gdf = 0
+    for i in range(len(tile_buffer)):
+        if i == 0:
+            gdf = gpd.read_file(tile_buffer[0])
+        else:
+            gdf2 = gpd.read_file(tile_buffer[i])
+            gdf = pd.concat([gdf, gdf2])
+    res = gdf.to_json()
+    gdf.to_file("./output/" + "geb.geojson", driver="GeoJSON")
+    return gdf
+
+
+def getBuildingFloodOverlap(location=(370500, 5698700, 1000)):
+    bbox = setLocation(location[0], location[1], location[2])
+    build_gdf = loadWFStoGDF(alkis_simplified_wfs_url, bbox)
+    gdf = 0
+    with open(output_folder + "cleanflood.geojson") as file:
+        jsonObj = json.load(file)
+        gdf = gpd.GeoDataFrame.from_features(jsonObj["features"])
+    gdf = gdf.set_crs(epsg="25832")
+    # gdf = gdf.to_crs(epsg="25832")
+    res_gdf = build_gdf.overlay(gdf, how="intersection")
+    res_gdf.to_file("./output/" + "geb_overlap.geojson", driver="GeoJSON")
+    return res_gdf.to_crs(epsg="4326").to_json()
 
 
 def rndPre(nmbr, digits_before_decimal):
@@ -358,7 +423,7 @@ def rndPre(nmbr, digits_before_decimal):
 if __name__ == "__main__":
     if DEBUG:
         # Bochum Dahlhausen
-        location = (370500, 5698700, 4000)
+        bbox = (370500, 5698700, 1000)
         flood_height = 1
         console.print("[bold red]~~~ Flood model cli ~~~")
         console.print(f"Async Download: {ASYNC_DL} | Debug: {DEBUG} ")
@@ -379,9 +444,11 @@ if __name__ == "__main__":
         table.add_column("y")
         table.add_column("radius m")
         table.add_column("height m")
-        location = [x, y, r]
+        bbox = [x, y, r]
         table.add_row(str(x), str(y), str(r), str(flood_height))
         console.print(table)
 
-    createFloodzoneMultiTile(flood_height, location)
+    createFloodzoneMultiTileGDF(flood_height, bbox)
+
+    getBuildingFloodOverlap(bbox)
     console.print("[green]DONE !")

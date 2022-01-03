@@ -20,7 +20,18 @@ def getFloodzone():
     radius = int(request.args.get("r"))
     height = int(request.args.get("h"))
     loc = (point[0], point[1], radius)
-    return mdl.createFloodzoneMultiTile(height, loc)
+    return mdl.createFloodzoneMultiTileJSON(height, loc)
+
+
+@app.route("/api/createGeb")
+def getGebOverlap():
+    x = int(request.args.get("x")) / 100000
+    y = int(request.args.get("y")) / 100000
+    point = mdl.convertToUTM32(x, y)
+
+    radius = int(request.args.get("r"))
+    loc = (point[0], point[1], radius)
+    return mdl.getBuildingFloodOverlap(loc)
 
 
 @app.route("/")

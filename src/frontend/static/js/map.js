@@ -16,6 +16,8 @@ var circle;
 var RecFixed;
 var RecUnfixed;
 var floodzone_layer;
+var gebOverlap_layer;
+var result_layerGroup;
 
 function initControls() {
     if (mymap) {
@@ -94,9 +96,9 @@ function makeTileOutline() {
 
 function initMap() {
     mymap = L.map(mapContainerNodeId).setView([51.430887039964055, 7.27251886572458], 14);
+    result_layerGroup = L.layerGroup();
 
     initControls();
-
     initBackgroundLayers();
 
     mymap.on("click", onMapClick);
@@ -111,7 +113,7 @@ function onMapClick(e) {
 
 function removeNamedLayer(layername) {
     if (layername) {
-        mymap.removeLayer(layername);
+        result_layerGroup.removeLayer(layername);
     }
 }
 
@@ -123,7 +125,28 @@ function getFloodzone(x, y, r, h) {
         .then((data) => {
             // console.log(data.features);
             removeNamedLayer(floodzone_layer);
-            floodzone_layer = L.geoJSON(data.features).addTo(mymap);
+            floodzone_layer = L.geoJSON(data.features);
+            result_layerGroup.addLayer(floodzone_layer).addTo(mymap);
+        });
+}
+
+function getGebOverlap(x, y, r) {
+    x = parseInt(x * 100000);
+    y = parseInt(y * 100000);
+    fetch(`http://127.0.0.1:5000/api/createGeb?x=${x}&y=${y}&r=${r}`)
+        .then((response) => response.json())
+        .then((data) => {
+            // console.log(data.features);
+            removeNamedLayer(gebOverlap_layer);
+            gebOverlap_layer = L.geoJSON(data.features);
+            gebOverlap_layer.setStyle({
+                color: "#fff200",
+                weight: 1,
+                // opacity: 0,
+                fillColor: "#fff300"
+                // fillOpacity: 0
+            });
+            result_layerGroup.addLayer(gebOverlap_layer).addTo(mymap);
         });
 }
 
@@ -156,8 +179,14 @@ function sendRequestFloodzone() {
     getFloodzone(x_fixed, y_fixed, r, h);
 }
 
+function sendRequestGebOverlap() {
+    getGebOverlap(x_fixed, y_fixed, r);
+}
+
 function fixLocation() {
-    removeNamedLayer(RecFixed);
+    if (RecFixed) {
+        mymap.removeLayer(RecFixed);
+    }
     // set x,y values
     x_fixed = x;
     y_fixed = y;
