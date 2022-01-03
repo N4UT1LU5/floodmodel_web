@@ -1,25 +1,41 @@
+:root {
+    /* CSS HEX */
+    --blue5: rgb(3, 4, 94);
+    --blue4: rgb(2, 62, 138);
+    --blue3: rgb(0, 150, 199);
+    --blue2: rgb(0, 180, 216);
+    --blue1: rgb(202, 240, 248);
+}
+body {
+    margin: 0;
+    font-family: "Segoe UI", Times, serif;
+}
+
 .map-wrapper {
     width: 100%;
-    height: 100vh;
+    height: 100%;
     position: relative;
     border: 1px solid black;
 }
 
 #mapContainer {
     z-index: 1;
-    width: 100%;
-    height: 100%;
-    background-color: rgb(7, 24, 54);
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--blue5);
 }
 
 .control-wrapper {
     z-index: 2;
     position: absolute;
-    bottom: 15vh;
+    bottom: 5vh;
     /* width: 40vw; */
-    background-color: #ffffff59;
-    /* height: 65px; */
-    /* border: 2px solid rgb(0, 0, 0); */
+    /* background-color: #000; */
+    background-color: rgba(202, 240, 248, 0.6);
+    margin: 1rem;
+    padding: 0.2rem;
+    border: 2px solid var(--blue4);
+    border-radius: 0.3rem;
 }
 
 .flood_btn {
@@ -28,9 +44,9 @@
     text-decoration: none;
     text-align: center;
     color: black;
-    background-color: #06a0d3;
+    background-color: var(--blue3);
     /* outline-color: black; */
-    font-family: "Segoe UI", Times, serif;
+
     /* line-height: 26px; */
     padding: 5px 3px;
     cursor: pointer;
@@ -38,14 +54,26 @@
     border-radius: 5px;
     border: none;
     transition-duration: 0.4s;
+    position: relative;
 }
 
 .flood_btn:hover {
-    background-color: #4caf50;
+    background-color: var(--blue4);
     color: white;
     box-shadow: 0 12px 16px 0 rgba(0, 0, 0, 0.24), 0 17px 50px 0 rgba(0, 0, 0, 0.19);
 }
 
+.flood_btn:disabled,
+.flood_btn:disabled:hover {
+    background-color: rgb(131, 132, 133);
+    cursor: default;
+    box-shadow: none;
+}
+
+.flood_btn.btn_loading:disabled,
+.flood_btn.btn_loading:disabled:hover {
+    cursor: wait;
+}
 .popup {
     position: relative;
     display: inline-block;
@@ -66,12 +94,13 @@
 }
 
 .slider_label {
-    /* outline-color: rgb(0, 0, 0); */
-    outline-style: auto;
-    /* width: 10%; */
+    /* outline-style: auto; */
+
+    align-items: baseline;
+
     height: 2rem;
-    background-color: white;
-    padding: 0.6rem;
+    background-color: var(--blue1);
+    /* padding: 0.6rem; */
     cursor: pointer;
 }
 
@@ -80,10 +109,10 @@
     -webkit-appearance: none; /* Override default CSS styles */
     appearance: none;
     width: 40%;
-    background-color: blue;
-    height: 7px; /* Specified height */
+    background-color: var(--blue5);
+    height: 5px; /* Specified height */
     outline: none; /* Remove outline */
-    opacity: 0.7; /* Set transparency (for mouse-over effects on hover) */
+    opacity: 0.8; /* Set transparency (for mouse-over effects on hover) */
     -webkit-transition: 0.2s; /* 0.2 seconds transition on hover */
     transition: opacity 0.2s;
     margin: 15px;
@@ -99,9 +128,9 @@
 .slider::-webkit-slider-thumb {
     -webkit-appearance: none; /* Override default look */
     appearance: none;
-    width: 25px; /* Set a specific slider handle width */
-    height: 25px; /* Slider handle height */
-    background: #ffffff; /* Green background */
+    width: 20px; /* Set a specific slider handle width */
+    height: 20px; /* Slider handle height */
+    background: var(--blue3); /* Green background */
     cursor: pointer; /* Cursor on hover */
     border-radius: 100vh;
 }
@@ -109,7 +138,39 @@
 .slider::-moz-range-thumb {
     width: 25px; /* Set a specific slider handle width */
     height: 25px; /* Slider handle height */
-    background: #ffffff; /* Green background */
+    background: var(--blue3); /* Green background */
     cursor: pointer; /* Cursor on hover */
+    border: none;
     border-radius: 100vh;
+}
+
+.loading {
+    width: 0px;
+    height: 0.3rem;
+    left: 0;
+    bottom: 0;
+    position: absolute;
+    background-color: var(--blue4);
+}
+
+.btn_loading div {
+    animation-name: btn_loading_animation;
+    animation-duration: 3s;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+}
+
+@keyframes btn_loading_animation {
+    0% {
+        width: 0px;
+        left: 0;
+    }
+    50% {
+        width: 30%;
+        left: 30%;
+    }
+    100% {
+        width: 0px;
+        left: 100%;
+    }
 }

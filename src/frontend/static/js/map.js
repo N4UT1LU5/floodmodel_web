@@ -30,9 +30,7 @@ function initControls() {
         L.control.scale({ maxWidth: 500, metric: true, imperial: false }).addTo(mymap);
 
         // layerControl
-        var baseLayers = {};
-        var overlayLayers = {};
-        myLayerControl = L.control.layers(baseLayers, overlayLayers);
+        myLayerControl = L.control.layers();
         myLayerControl.addTo(mymap);
     }
 }
@@ -77,6 +75,7 @@ function makeTileOutline() {
     if (RecUnfixed) {
         mymap.removeLayer(RecUnfixed);
     }
+    if (!lalo) return;
     circle = L.circle(lalo, r, {
         color: "#C02900",
         weight: 1,
@@ -114,12 +113,16 @@ function onMapClick(e) {
 function removeNamedLayer(layername) {
     if (layername) {
         result_layerGroup.removeLayer(layername);
+        myLayerControl.removeLayer(layername);
     }
 }
 
 function getFloodzone(x, y, r, h) {
     x = parseInt(x * 100000);
     y = parseInt(y * 100000);
+    document.getElementById("btnFld").classList.add("btn_loading");
+    document.getElementById("btnFld").disabled = true;
+    console.log(document.getElementById("btnFld").classList);
     fetch(`http://127.0.0.1:5000/api/createFloodzone?x=${x}&y=${y}&r=${r}&h=${h}`)
         .then((response) => response.json())
         .then((data) => {
@@ -127,12 +130,22 @@ function getFloodzone(x, y, r, h) {
             removeNamedLayer(floodzone_layer);
             floodzone_layer = L.geoJSON(data.features);
             result_layerGroup.addLayer(floodzone_layer).addTo(mymap);
+            myLayerControl.addOverlay(floodzone_layer, "Überflutungsgebiet");
+        })
+        .finally(() => {
+            console.log("removed");
+            document.getElementById("btnFld").disabled = false;
+            document.getElementById("btnGeb").disabled = false;
+            document.getElementById("btnFld").classList.remove("btn_loading");
         });
 }
 
 function getGebOverlap(x, y, r) {
     x = parseInt(x * 100000);
     y = parseInt(y * 100000);
+    document.getElementById("btnGeb").classList.add("btn_loading");
+    document.getElementById("btnFld").disabled = true;
+    document.getElementById("btnGeb").disabled = true;
     fetch(`http://127.0.0.1:5000/api/createGeb?x=${x}&y=${y}&r=${r}`)
         .then((response) => response.json())
         .then((data) => {
@@ -147,32 +160,46 @@ function getGebOverlap(x, y, r) {
                 // fillOpacity: 0
             });
             result_layerGroup.addLayer(gebOverlap_layer).addTo(mymap);
+            myLayerControl.addOverlay(gebOverlap_layer, "Überflutunge Gebäude");
+        })
+        .finally(() => {
+            console.log("removed");
+            document.getElementById("btnFld").disabled = false;
+            document.getElementById("btnGeb").disabled = false;
+            document.getElementById("btnGeb").classList.remove("btn_loading");
         });
 }
 
 function onDomLoaded() {
     initMap();
     // SLIDER JS Waterheight
-    let sliderWater = document.getElementById("height_slider");
-    let outputWater = document.getElementById("height_label_value");
-    outputWater.innerHTML = document.getElementById("height_slider").value; // Display the default slider value
+    let sliderHeight = document.getElementById("height_slider");
+    let labelHeight = document.getElementById("height_label_value");
+    labelHeight.innerHTML = sliderHeight.value; // Display the default slider value
+    h = sliderHeight.value;
 
     // Update the current slider value (each time you drag the slider handle)
-    sliderWater.oninput = function () {
-        outputWater.innerHTML = this.value;
-        h = this.value;
+    sliderHeight.oninput = function () {
+        labelHeight.innerHTML = this.value / 10;
+        h = this.value / 10;
     };
+
     // SLIDER JS Radius
     let sliderRadius = document.getElementById("radius_slider");
-    let outputRadius = document.getElementById("radius_label_value");
-    outputRadius.innerHTML = document.getElementById("radius_slider").value * 100; // Display the default slider value
+    let labelRadius = document.getElementById("radius_label_value");
+    labelRadius.innerHTML = sliderRadius.value * 100; // Display the default slider value
+    r = sliderRadius.value * 100;
 
     // Update the current slider value (each time you drag the slider handle)
     sliderRadius.oninput = function () {
-        outputRadius.innerHTML = this.value * 100;
+        labelRadius.innerHTML = this.value * 100;
         r = this.value * 100;
         makeTileOutline();
     };
+
+    // Firsttime disable request buttons
+    document.getElementById("btnFld").disabled = true;
+    document.getElementById("btnGeb").disabled = true;
 }
 
 function sendRequestFloodzone() {
@@ -187,6 +214,7 @@ function fixLocation() {
     if (RecFixed) {
         mymap.removeLayer(RecFixed);
     }
+    document.getElementById("btnFld").disabled = false;
     // set x,y values
     x_fixed = x;
     y_fixed = y;

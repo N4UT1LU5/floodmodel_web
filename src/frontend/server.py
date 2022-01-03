@@ -18,7 +18,7 @@ def getFloodzone():
     point = mdl.convertToUTM32(x, y)
 
     radius = int(request.args.get("r"))
-    height = int(request.args.get("h"))
+    height = float(request.args.get("h"))
     loc = (point[0], point[1], radius)
     return mdl.createFloodzoneMultiTileJSON(height, loc)
 
