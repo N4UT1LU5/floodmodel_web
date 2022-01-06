@@ -13,7 +13,7 @@
             rel="stylesheet"
         />
         <!-- favicon -->
-        <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}" />
+        <link rel="shortcut icon" href="{{ url_for('static', filename='icons/favicon.svg') }}" />
 
         <!-- leaflet dependencies -->
         <link
@@ -70,7 +70,9 @@
         </div>
         <div class="download-wrapper">
             <div>Download:</div>
-            <button type="button" id="btnJson" onclick="donwnloadJSON()" class="flood_btn">JSON</button>
+            <button type="button" id="btnJson" onclick="donwnloadJSON()" title="Download as JSON" class="flood_btn">
+                JSON
+            </button>
             <!-- <button type="button" id="btnPng" class="flood_btn">PNG</button> -->
         </div>
     </body>
