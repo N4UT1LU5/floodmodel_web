@@ -259,10 +259,19 @@ function donwnloadJSON() {
         a.click();
     }
 }
-function ZoomToLayer() {
+
+function zoomToLayer() {
     if (floodzone_layer) {
         mymap.fitBounds(floodzone_layer.getBounds());
     }
+}
+
+function zoomInMap() {
+    mymap.zoomIn();
+}
+
+function zoomOutMap() {
+    mymap.zoomOut();
 }
 
 document.addEventListener("DOMContentLoaded", onDomLoaded);
