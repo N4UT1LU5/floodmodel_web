@@ -83,8 +83,19 @@
                 </div>
             </div>
         </div>
+        <div class="zoom-wrapper">
+            <button type="button" id="btnZoomIn" onclick="zoomInMap()" title="Zoom in" class="zoom_btn">
+                <img src="{{ url_for('static', filename='icons/add_black_24dp.svg') }}" alt="" />
+            </button>
+            <button type="button" id="btnZoomOut" onclick="zoomOutMap()" title="Zoom out" class="zoom_btn">
+                <img src="{{ url_for('static', filename='icons/remove_black_24dp.svg') }}" alt="" />
+            </button>
+            <button type="button" id="btnZoomToLayer" onclick="zoomToLayer()" title="Zoom to Layer" class="zoom_btn">
+                <img src="{{ url_for('static', filename='icons/center_focus_weak_black_24dp.svg') }}" alt="" />
+            </button>
+        </div>
         <div class="download-wrapper">
-            <button type="button" id="btnJson" onclick="donwnloadJSON()" title="Download as JSON" class="flood_btn">
+            <button type="button" id="btnJson" onclick="donwnloadJSON()" title="Download as JSON" class="download_btn">
                 <img src="{{ url_for('static', filename='icons/file_download_black_24dp.svg') }}" alt="JSON" />
             </button>
             <!-- <button type="button" id="btnPng" class="flood_btn">PNG</button> -->
