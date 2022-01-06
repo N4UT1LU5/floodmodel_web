@@ -90,6 +90,9 @@
             <button type="button" id="btnZoomOut" onclick="zoomOutMap()" title="Zoom out" class="zoom_btn">
                 <img src="{{ url_for('static', filename='icons/remove_black_24dp.svg') }}" alt="" />
             </button>
+            <button type="button" id="btnLocateMe" onclick="locateMe()" title="Zoom to my Position" class="zoom_btn">
+                <img src="{{ url_for('static', filename='icons/my_location_black_24dp.svg') }}" alt="" />
+            </button>
             <button type="button" id="btnZoomToLayer" onclick="zoomToLayer()" title="Zoom to Layer" class="zoom_btn">
                 <img src="{{ url_for('static', filename='icons/center_focus_weak_black_24dp.svg') }}" alt="" />
             </button>
