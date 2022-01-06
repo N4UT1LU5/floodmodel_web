@@ -1,9 +1,8 @@
-// import { getFloodzone } from "./modules/api.js";
-
 var mapContainerNodeId = "mapContainer";
 
 var mymap;
 var myLayerControl;
+
 var x = 0;
 var y = 0;
 var x_fixed = x;
@@ -11,20 +10,17 @@ var y_fixed = y;
 var h = 1;
 var r = 1000;
 var lalo;
+
 var recBounds = [];
-var circle;
-var RecFixed;
-var RecUnfixed;
-var floodzone_layer;
-var gebOverlap_layer;
-var result_layerGroup;
+var RecFixed, RecUnfixed;
+var floodzone_layer, gebOverlap_layer;
+var result_layerGroup, outline_layerGroup;
+var floodzone_JSON, buildings_JSON;
 
 function initControls() {
     if (mymap) {
-        // zoom control as default
-
         // attribution control - static suffix
-        mymap.attributionControl.addAttribution("BO GI II Demo Webapp");
+        mymap.attributionControl.addAttribution("Flutmodell PoC");
 
         // scale control
         L.control.scale({ maxWidth: 500, metric: true, imperial: false }).addTo(mymap);
@@ -39,6 +35,7 @@ function initBackgroundLayers() {
     if (mymap && myLayerControl) {
         // specify all background WMS layers
         // only OSM as active layer
+
         //https://leaflet-extras.github.io/leaflet-providers/preview/
         var wmsLayer_topplus = L.tileLayer.wms("http://sgx.geodatenzentrum.de/wms_topplus_web_open?", {
             format: "image/png",
@@ -72,34 +69,60 @@ function initBackgroundLayers() {
 }
 
 function makeTileOutline() {
+    var circle;
     if (RecUnfixed) {
-        mymap.removeLayer(RecUnfixed);
+        // mymap.removeLayer(RecUnfixed);
+        removeNamedLayer(RecUnfixed);
+        outline_layerGroup.removeLayer(RecUnfixed);
     }
     if (!lalo) return;
     circle = L.circle(lalo, r, {
-        color: "#C02900",
-        weight: 1,
         opacity: 0,
-        fillColor: "#ff0000",
         fillOpacity: 0
     }).addTo(mymap);
 
     recBounds = circle.getBounds();
-    removeNamedLayer(RecUnfixed);
+    removeNamedLayer(circle);
+
     RecUnfixed = L.rectangle(recBounds, {
         color: "#0000ff",
-        weight: 5,
+        weight: 2,
         fillOpacity: 0
-    }).addTo(mymap);
+    });
+    outline_layerGroup.addLayer(RecUnfixed).addTo(mymap);
+    myLayerControl.removeLayer(outline_layerGroup);
+    myLayerControl.addOverlay(outline_layerGroup, "Umrandung");
+}
+
+function fixLocation() {
+    if (RecFixed) {
+        removeNamedLayer(RecFixed);
+        outline_layerGroup.removeLayer(RecFixed);
+    }
+    // enable request
+    document.getElementById("btnFld").disabled = false;
+
+    // set x,y values
+    x_fixed = x;
+    y_fixed = y;
+
+    RecFixed = L.rectangle(recBounds, {
+        color: "#ff0000",
+        weight: 3,
+        fillOpacity: 0
+    });
+    outline_layerGroup.addLayer(RecFixed).addTo(mymap);
 }
 
 function initMap() {
+    // default map frame
     mymap = L.map(mapContainerNodeId).setView([51.430887039964055, 7.27251886572458], 14);
-    result_layerGroup = L.layerGroup();
 
+    // initialize layergroups
+    result_layerGroup = L.layerGroup();
+    outline_layerGroup = L.layerGroup();
     initControls();
     initBackgroundLayers();
-
     mymap.on("click", onMapClick);
 }
 
@@ -114,6 +137,7 @@ function removeNamedLayer(layername) {
     if (layername) {
         result_layerGroup.removeLayer(layername);
         myLayerControl.removeLayer(layername);
+        mymap.removeLayer(layername);
     }
 }
 
@@ -127,8 +151,15 @@ function getFloodzone(x, y, r, h) {
         .then((response) => response.json())
         .then((data) => {
             // console.log(data.features);
+            floodzone_JSON = data;
             removeNamedLayer(floodzone_layer);
             floodzone_layer = L.geoJSON(data.features);
+            floodzone_layer.setStyle({
+                color: "#0033ff",
+                weight: 2,
+                fillColor: "#0033ff",
+                fillOpacity: 0.1
+            });
             result_layerGroup.addLayer(floodzone_layer).addTo(mymap);
             myLayerControl.addOverlay(floodzone_layer, "Überflutungsgebiet");
         })
@@ -150,14 +181,14 @@ function getGebOverlap(x, y, r) {
         .then((response) => response.json())
         .then((data) => {
             // console.log(data.features);
+            buildings_JSON = data;
             removeNamedLayer(gebOverlap_layer);
             gebOverlap_layer = L.geoJSON(data.features);
             gebOverlap_layer.setStyle({
-                color: "#fff200",
+                color: "#ff3700",
                 weight: 1,
-                // opacity: 0,
-                fillColor: "#fff300"
-                // fillOpacity: 0
+                fillColor: "#ff3700",
+                fillOpacity: 0.4
             });
             result_layerGroup.addLayer(gebOverlap_layer).addTo(mymap);
             myLayerControl.addOverlay(gebOverlap_layer, "Überflutunge Gebäude");
@@ -175,8 +206,8 @@ function onDomLoaded() {
     // SLIDER JS Waterheight
     let sliderHeight = document.getElementById("height_slider");
     let labelHeight = document.getElementById("height_label_value");
-    labelHeight.innerHTML = sliderHeight.value; // Display the default slider value
-    h = sliderHeight.value;
+    labelHeight.innerHTML = sliderHeight.value / 10; // Display the default slider value
+    h = sliderHeight.value / 10;
 
     // Update the current slider value (each time you drag the slider handle)
     sliderHeight.oninput = function () {
@@ -210,21 +241,23 @@ function sendRequestGebOverlap() {
     getGebOverlap(x_fixed, y_fixed, r);
 }
 
-function fixLocation() {
-    if (RecFixed) {
-        mymap.removeLayer(RecFixed);
+function donwnloadJSON() {
+    if (floodzone_JSON) {
+        let data = JSON.stringify(floodzone_JSON);
+        const a = document.createElement("a");
+        const file = new Blob([data], { type: "text/plain" });
+        a.href = URL.createObjectURL(file);
+        a.download = "Flutgebiet.json";
+        a.click();
     }
-    document.getElementById("btnFld").disabled = false;
-    // set x,y values
-    x_fixed = x;
-    y_fixed = y;
-
-    RecFixed = L.rectangle(recBounds, {
-        color: "#ff0000",
-        weight: 5,
-        fillOpacity: 0
-    });
-    RecFixed.addTo(mymap);
+    if (buildings_JSON) {
+        let data = JSON.stringify(buildings_JSON);
+        const a = document.createElement("a");
+        const file = new Blob([data], { type: "text/plain" });
+        a.href = URL.createObjectURL(file);
+        a.download = "Betroffene_Gebaude.json";
+        a.click();
+    }
 }
 
 document.addEventListener("DOMContentLoaded", onDomLoaded);
