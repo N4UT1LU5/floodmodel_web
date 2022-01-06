@@ -116,8 +116,12 @@ function fixLocation() {
 
 function initMap() {
     // default map frame
-    mymap = L.map(mapContainerNodeId).setView([51.430887039964055, 7.27251886572458], 14);
-
+    mymap = L.map(mapContainerNodeId, { minZoom: 9 }).setView([51.43, 7.272], 14);
+    locateMe();
+    mymap.setMaxBounds([
+        [52.146, 6.364],
+        [50.363, 9.395]
+    ]);
     // initialize layergroups
     result_layerGroup = L.layerGroup();
     outline_layerGroup = L.layerGroup();
@@ -272,6 +276,10 @@ function zoomInMap() {
 
 function zoomOutMap() {
     mymap.zoomOut();
+}
+
+function locateMe() {
+    mymap.locate({ setView: true, maxZoom: 16 });
 }
 
 document.addEventListener("DOMContentLoaded", onDomLoaded);
