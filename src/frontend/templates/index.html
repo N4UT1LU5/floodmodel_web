@@ -42,15 +42,30 @@
         <!-- <div class="map-wrapper"> -->
         <div id="mapContainer"></div>
         <div class="control-wrapper">
-            <input type="button" id="btn1" onclick="fixLocation()" value="Standpunkt Setzen" class="flood_btn" />
-            <!-- <input type="button" id="btn2" onclick="alert('km x km')" value="Radius setzen" class="flood_btn" /> -->
-            <!-- <input type="button" id="btn3" onclick="alert('Höhe in m über Wasserstand')" value="Höhe setzen"class="flood_btn" /> -->
-            <button type="button" id="btnGeb" onclick="sendRequestGebOverlap()" class="flood_btn" disabled="">
-                Gebäude
+            <button type="button" id="btn1" onclick="fixLocation()" title="Standpunkt Setzen" class="flood_btn">
+                <img src="{{ url_for('static', filename='icons/push_pin_black_24dp.svg') }}" alt="Standpunkt setzen" />
+            </button>
+
+            <button
+                type="button"
+                id="btnFld"
+                onclick="sendRequestFloodzone()"
+                title="Flutbereich berechnen"
+                class="flood_btn"
+                disabled=""
+            >
+                <img src="{{ url_for('static', filename='icons/waves_black_24dp.svg') }}" alt="Anfrage senden" />
                 <div class="loading"></div>
             </button>
-            <button type="button" id="btnFld" onclick="sendRequestFloodzone()" class="flood_btn" disabled="">
-                Anfrage Senden
+            <button
+                type="button"
+                id="btnGeb"
+                onclick="sendRequestGebOverlap()"
+                title="Gebäude berechnen"
+                class="flood_btn"
+                disabled=""
+            >
+                <img src="{{ url_for('static', filename='icons/water_damage_black_24dp.svg') }}" alt="Anfrage senden" />
                 <div class="loading"></div>
             </button>
             <div class="slidecontainer">
@@ -69,9 +84,8 @@
             </div>
         </div>
         <div class="download-wrapper">
-            <div>Download:</div>
             <button type="button" id="btnJson" onclick="donwnloadJSON()" title="Download as JSON" class="flood_btn">
-                JSON
+                <img src="{{ url_for('static', filename='icons/file_download_black_24dp.svg') }}" alt="JSON" />
             </button>
             <!-- <button type="button" id="btnPng" class="flood_btn">PNG</button> -->
         </div>

@@ -115,6 +115,7 @@ body {
 
     height: 2rem;
     background-color: var(--blue1);
+    font-weight: bold;
     /* padding: 0.6rem; */
     cursor: pointer;
 }
@@ -123,7 +124,7 @@ body {
 .slider {
     -webkit-appearance: none; /* Override default CSS styles */
     appearance: none;
-    width: 40%;
+    width: 55%;
     background-color: var(--blue5);
     height: 5px; /* Specified height */
     outline: none; /* Remove outline */
