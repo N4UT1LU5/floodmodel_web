@@ -6,9 +6,10 @@
     --blue2: rgb(0, 180, 216);
     --blue1: rgb(202, 240, 248);
 }
+
 body {
     margin: 0;
-    font-family: "Segoe UI", Times, serif;
+    font-family: "Open Sans", sans-serif;
 }
 
 .map-wrapper {
@@ -42,6 +43,7 @@ body {
     position: absolute;
     bottom: 5vh;
     right: 0vh;
+    font-weight: 900;
     /* width: 40vw; */
     /* background-color: #000; */
     background-color: rgba(202, 240, 248, 0.6);
