@@ -238,16 +238,36 @@ def createFloodzoneMultiTileGDF(floodheight: float, location: list):
     x_cursor = outer_bbox[0]
     y_cursor = outer_bbox[2]
 
-    if location[2] > 1000:
+    # create gdf of bounding box
+    tile_gdf = gpd.GeoDataFrame(
+        geometry=gpd.points_from_xy(
+            x=[outer_bbox[0], outer_bbox[1]], y=[outer_bbox[2], outer_bbox[3]]
+        ),
+    )
+    tile_gdf = tile_gdf.set_crs(epsg="25832")
+
+    river_gdf = gpd.read_file(river_shapefile, bbox=tile_gdf.envelope)
+    if river_gdf.columns.empty == True:
+        return
+
+    if location[2] > 500:
         bbox_list = []
         while y_cursor < outer_bbox[3]:
+            if outer_bbox[3] - y_cursor < TILE_RASTER_SIZE:
+                y_addon = outer_bbox[3] - y_cursor
+            else:
+                y_addon = TILE_RASTER_SIZE
             while x_cursor < outer_bbox[1]:
+                if outer_bbox[1] - x_cursor < TILE_RASTER_SIZE:
+                    x_addon = outer_bbox[1] - x_cursor
+                else:
+                    x_addon = TILE_RASTER_SIZE
                 bbox_list.append(
                     [
                         x_cursor,
-                        x_cursor + TILE_RASTER_SIZE,
+                        x_cursor + x_addon,
                         y_cursor,
-                        y_cursor + TILE_RASTER_SIZE,
+                        y_cursor + y_addon,
                     ]
                 )
                 x_cursor += TILE_RASTER_SIZE
@@ -357,7 +377,6 @@ def loadWFStoGDF(wfs_url, bbox=setLocation(370500, 5698700, 2000)):
     """
     Download WFS from URL at given bounding box into GDF
     """
-    TILE_RASTER_SIZE = 1000
     outer_bbox = bbox
     bbox_list = [outer_bbox]
     x_cursor = outer_bbox[0]
