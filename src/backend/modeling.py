@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os, time, sys, io
 import pandas
 import requests, aiohttp
@@ -9,7 +8,7 @@ import rasterio as rio
 from rasterio import features
 import geopandas as gpd
 import pandas as pd
-from geopandas.geodataframe import GeoDataFrame
+
 import numpy as np
 import shapely.speedups
 
@@ -116,7 +115,9 @@ def setLocation(x, y, r):
 
 def convertToUTM32(x, y):
     df = pandas.DataFrame({"lat": [x], "lon": [y]})
-    gdf = GeoDataFrame(df, geometry=gpd.points_from_xy(df.lon, df.lat), crs="EPSG:4326")
+    gdf = gpd.GeoDataFrame(
+        df, geometry=gpd.points_from_xy(df.lon, df.lat), crs="EPSG:4326"
+    )
     gdf = gdf.to_crs(epsg="25832")
     x = gdf.geometry.x[0]
     y = gdf.geometry.y[0]
@@ -195,7 +196,7 @@ def calcMeanRiverHeight(riverSHPfilename, raster_list):
     return sum(mean_river_height_list) / len(mean_river_height_list)
 
 
-def cleanupFloodzoneShape(floodzone_gdf: GeoDataFrame, river_gdf: GeoDataFrame):
+def cleanupFloodzoneShape(floodzone_gdf: gpd.GeoDataFrame, river_gdf: gpd.GeoDataFrame):
     """
     remove polygons not connected to river and simplify geometry
     """
@@ -247,8 +248,9 @@ def createFloodzoneMultiTileGDF(floodheight: float, location: list):
     tile_gdf = tile_gdf.set_crs(epsg="25832")
 
     river_gdf = gpd.read_file(river_shapefile, bbox=tile_gdf.envelope)
-    if river_gdf.columns.empty == True:
-        return
+
+    if river_gdf.empty == True:
+        return river_gdf
 
     if location[2] > 500:
         bbox_list = []
@@ -369,8 +371,10 @@ def createFloodzoneMultiTileGDF(floodheight: float, location: list):
 
 
 def createFloodzoneMultiTileJSON(height, location):
-    gdf = createFloodzoneMultiTileGDF(height, location).to_crs(epsg=4326)
-    return gdf.to_json()
+    gdf = createFloodzoneMultiTileGDF(height, location)
+    if gdf.empty:
+        return False
+    return gdf.to_crs(epsg=4326).to_json()
 
 
 def loadWFStoGDF(wfs_url, bbox=setLocation(370500, 5698700, 2000)):
@@ -382,16 +386,24 @@ def loadWFStoGDF(wfs_url, bbox=setLocation(370500, 5698700, 2000)):
     x_cursor = outer_bbox[0]
     y_cursor = outer_bbox[2]
 
-    if bbox[2] > 1000:
+    if bbox[3] - bbox[2] > 500:
         bbox_list = []
         while y_cursor < outer_bbox[3]:
+            if outer_bbox[3] - y_cursor < TILE_RASTER_SIZE:
+                y_addon = outer_bbox[3] - y_cursor
+            else:
+                y_addon = TILE_RASTER_SIZE
             while x_cursor < outer_bbox[1]:
+                if outer_bbox[1] - x_cursor < TILE_RASTER_SIZE:
+                    x_addon = outer_bbox[1] - x_cursor
+                else:
+                    x_addon = TILE_RASTER_SIZE
                 bbox_list.append(
                     [
                         x_cursor,
-                        x_cursor + TILE_RASTER_SIZE,
+                        x_cursor + x_addon,
                         y_cursor,
-                        y_cursor + TILE_RASTER_SIZE,
+                        y_cursor + y_addon,
                     ]
                 )
                 x_cursor += TILE_RASTER_SIZE
@@ -407,30 +419,49 @@ def loadWFStoGDF(wfs_url, bbox=setLocation(370500, 5698700, 2000)):
     tile_buffer = []
     # download
     tile_buffer.extend(asyncio.run(async_download(urls)))
-    gdf = 0
+    gdf = gpd.GeoDataFrame()
     for i in range(len(tile_buffer)):
-        if i == 0:
-            gdf = gpd.read_file(tile_buffer[0])
+        if gdf.empty:
+            gdf = gpd_read_file(tile_buffer[0])
         else:
-            gdf2 = gpd.read_file(tile_buffer[i])
+            gdf2 = gpd_read_file(tile_buffer[i])
             gdf = pd.concat([gdf, gdf2])
-    res = gdf.to_json()
-    gdf.to_file("./output/" + "geb.geojson", driver="GeoJSON")
+
+    if not gdf.empty:
+        gdf.to_file("./output/" + "geb.geojson", driver="GeoJSON")
     return gdf
 
 
-def getBuildingFloodOverlap(location=(370500, 5698700, 1000)):
-    bbox = setLocation(location[0], location[1], location[2])
+def gpd_read_file(file):
+    try:
+        res = gpd.read_file(file)
+    except:
+        res = gpd.GeoDataFrame()
+    finally:
+        return res
+
+
+def getBuildingFloodOverlap(flood_json):
+    flood_gdf = 0
+
+    flood_gdf = gpd.GeoDataFrame.from_features(flood_json["features"])
+    flood_gdf = flood_gdf.set_crs(epsg="4326")
+    flood_gdf = flood_gdf.to_crs(epsg="25832")
+
+    bbox = [
+        flood_gdf.bounds.minx.values[0],
+        flood_gdf.bounds.maxx.values[0],
+        flood_gdf.bounds.miny.values[0],
+        flood_gdf.bounds.maxy.values[0],
+    ]
     build_gdf = loadWFStoGDF(alkis_simplified_wfs_url, bbox)
-    gdf = 0
-    with open(output_folder + "cleanflood.geojson") as file:
-        jsonObj = json.load(file)
-        gdf = gpd.GeoDataFrame.from_features(jsonObj["features"])
-    gdf = gdf.set_crs(epsg="25832")
-    # gdf = gdf.to_crs(epsg="25832")
-    res_gdf = build_gdf.overlay(gdf, how="intersection")
-    res_gdf.to_file("./output/" + "geb_overlap.geojson", driver="GeoJSON")
-    return res_gdf.to_crs(epsg="4326").to_json()
+
+    if build_gdf.empty:
+        return
+    else:
+        res_gdf = build_gdf.overlay(flood_gdf, how="intersection")
+        res_gdf.to_file("./output/" + "geb_overlap.geojson", driver="GeoJSON")
+        return res_gdf.to_crs(epsg="4326").to_json()
 
 
 def rndPre(nmbr, digits_before_decimal):

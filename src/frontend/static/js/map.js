@@ -150,11 +150,18 @@ function getFloodzone(x, y, r, h) {
     y = parseInt(y * 100000);
     document.getElementById("btnFld").classList.add("btn_loading");
     document.getElementById("btnFld").disabled = true;
-    console.log(document.getElementById("btnFld").classList);
     fetch(`http://127.0.0.1:5000/api/createFloodzone?x=${x}&y=${y}&r=${r}&h=${h}`)
-        .then((response) => response.json())
+        .then((response) => {
+            if (response.status === 201) {
+                console.log("no river in tile");
+                return;
+            }
+            return response.json();
+        })
         .then((data) => {
-            // console.log(data.features);
+            if (!data) {
+                return;
+            }
             floodzone_JSON = data;
             removeNamedLayer(floodzone_layer);
             floodzone_layer = L.geoJSON(data.features);
@@ -166,25 +173,37 @@ function getFloodzone(x, y, r, h) {
             });
             result_layerGroup.addLayer(floodzone_layer).addTo(mymap);
             myLayerControl.addOverlay(floodzone_layer, "Überflutungsgebiet");
+
+            document.getElementById("btnGeb").disabled = false;
         })
         .finally(() => {
-            console.log("removed");
             document.getElementById("btnFld").disabled = false;
-            document.getElementById("btnGeb").disabled = false;
             document.getElementById("btnFld").classList.remove("btn_loading");
         });
 }
 
-function getGebOverlap(x, y, r) {
-    x = parseInt(x * 100000);
-    y = parseInt(y * 100000);
+function getGebOverlap() {
     document.getElementById("btnGeb").classList.add("btn_loading");
     document.getElementById("btnFld").disabled = true;
     document.getElementById("btnGeb").disabled = true;
-    fetch(`http://127.0.0.1:5000/api/createGeb?x=${x}&y=${y}&r=${r}`)
-        .then((response) => response.json())
+    fetch(`http://127.0.0.1:5000/api/createGeb`, {
+        method: "post",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(floodzone_JSON)
+    })
+        .then((response) => {
+            if (response.status === 201) {
+                console.log("no buildings in tile");
+                return;
+            }
+            return response.json();
+        })
         .then((data) => {
-            // console.log(data.features);
+            if (!data) {
+                return;
+            }
             buildings_JSON = data;
             removeNamedLayer(gebOverlap_layer);
             gebOverlap_layer = L.geoJSON(data.features);
@@ -196,11 +215,11 @@ function getGebOverlap(x, y, r) {
             });
             result_layerGroup.addLayer(gebOverlap_layer).addTo(mymap);
             myLayerControl.addOverlay(gebOverlap_layer, "Überflutunge Gebäude");
+
+            document.getElementById("btnGeb").disabled = false;
         })
         .finally(() => {
-            console.log("removed");
             document.getElementById("btnFld").disabled = false;
-            document.getElementById("btnGeb").disabled = false;
             document.getElementById("btnGeb").classList.remove("btn_loading");
         });
 }

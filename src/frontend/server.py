@@ -1,7 +1,8 @@
 import os
+
 from backend import modeling as mdl
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, Response
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,23 +21,25 @@ def getFloodzone():
     radius = int(request.args.get("r"))
     height = float(request.args.get("h"))
     loc = (point[0], point[1], radius)
-    return mdl.createFloodzoneMultiTileJSON(height, loc)
+    res = mdl.createFloodzoneMultiTileJSON(height, loc)
+    if res == False:
+        return Response(status=201)
+    else:
+        return res
 
 
-@app.route("/api/createGeb")
+@app.route("/api/createGeb", methods=["post"])
 def getGebOverlap():
-    x = int(request.args.get("x")) / 100000
-    y = int(request.args.get("y")) / 100000
-    point = mdl.convertToUTM32(x, y)
-
-    radius = int(request.args.get("r"))
-    loc = (point[0], point[1], radius)
-    return mdl.getBuildingFloodOverlap(loc)
+    flood_json = request.json
+    res = mdl.getBuildingFloodOverlap(flood_json)
+    if res == None:
+        return Response(status=201)
+    else:
+        return res
 
 
 @app.route("/")
-def hello_world():
-
+def root():
     return render_template("index.html")
 
 
