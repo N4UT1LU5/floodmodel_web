@@ -49,6 +49,8 @@ DEBUG = strToBool(os.environ.get("DEBUG"))
 ASYNC_DL = strToBool(os.environ.get("ASYNC_DL"))
 TILE_RASTER_SIZE = 1000
 
+print(f"ASYNC Download: {ASYNC_DL} | Debug: {DEBUG}")
+
 # globals
 # flood_gdf = GeoDataFrame()
 
@@ -140,7 +142,6 @@ def createRasterList(tile_buffer):
                     }
                 )
             )
-    print(sys.getsizeof(arr_list))
     return arr_list
 
 
@@ -151,11 +152,10 @@ def emptyFolder(folder):
         os.remove(os.path.join(folder, f))
 
 
-def downloadTiff(entry):
+def downloadTiff(url):
     """
     download Tiff from url and save in file of current directory
     """
-    url, filename_tiff = entry
     with requests.get(url) as r:
         if r.status_code == 200:
             inmemoryfile = io.BytesIO(r.content)
@@ -418,7 +418,11 @@ def loadWFStoGDF(wfs_url, bbox=setLocation(370500, 5698700, 2000)):
         urls.append(url)
     tile_buffer = []
     # download
-    tile_buffer.extend(asyncio.run(async_download(urls)))
+    if ASYNC_DL:
+        tile_buffer.extend(asyncio.run(async_download(urls)))
+    else:
+        for url in urls:
+            tile_buffer.append(downloadTiff(url))
     gdf = gpd.GeoDataFrame()
     for i in range(len(tile_buffer)):
         if gdf.empty:
@@ -476,7 +480,6 @@ if __name__ == "__main__":
         bbox = (370500, 5698700, 1000)
         flood_height = 1
         console.print("[bold red]~~~ Flood model cli ~~~")
-        console.print(f"Async Download: {ASYNC_DL} | Debug: {DEBUG} ")
     else:
         console.print("[bold blue]~~~ Flood model cli ~~~")
         flood_height = int(input("Enter floodwater height: ") or 1)
